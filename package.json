@@ -1,5 +1,6 @@
+
 {
-  "name": "Natively",
+  "name": "call-glitcher",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -9,6 +10,8 @@
     "web": "EXPO_NO_TELEMETRY=1 expo start --web",
     "build:web": "expo export -p web && npx workbox generateSW workbox-config.js",
     "build:android": "expo prebuild -p android",
+    "build:production": "eas build --platform android --profile production",
+    "build:preview": "eas build --platform android --profile preview",
     "lint": "eslint ."
   },
   "dependencies": {
