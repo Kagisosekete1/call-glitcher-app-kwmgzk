@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -36,8 +37,6 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
   const gestureTranslateY = useRef(new Animated.Value(0)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [currentSnapPoint, setCurrentSnapPoint] = useState(SNAP_POINTS.HALF);
-  const lastGestureY = useRef(0);
-  const startPositionY = useRef(0);
 
   useEffect(() => {
     if (isVisible) {
@@ -74,10 +73,12 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
   }, [isVisible, translateY, backdropOpacity]);
 
   const handleBackdropPress = () => {
+    console.log('Bottom sheet backdrop pressed');
     onClose?.();
   };
 
   const snapToPoint = (point: number) => {
+    console.log('Snapping to point:', point);
     setCurrentSnapPoint(point);
     gestureTranslateY.setValue(0);
     Animated.timing(translateY, {
@@ -108,29 +109,34 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
   };
 
   // Handles pan gesture events with boundary clamping
-  const onGestureEvent = (event: any) => {
-    const { translationY } = event.nativeEvent;
-    lastGestureY.current = translationY;
+  const onGestureEvent = Animated.event(
+    [{ nativeEvent: { translationY: gestureTranslateY } }],
+    { 
+      useNativeDriver: true,
+      listener: (event: any) => {
+        const { translationY } = event.nativeEvent;
+        const currentBasePosition = SCREEN_HEIGHT - currentSnapPoint;
+        const intendedPosition = currentBasePosition + translationY;
 
-    const currentBasePosition = SCREEN_HEIGHT - currentSnapPoint;
-    const intendedPosition = currentBasePosition + translationY;
+        const minPosition = SCREEN_HEIGHT - SNAP_POINTS.FULL;
+        const maxPosition = SCREEN_HEIGHT;
 
-    const minPosition = SCREEN_HEIGHT - SNAP_POINTS.FULL;
-    const maxPosition = SCREEN_HEIGHT;
+        const clampedPosition = Math.max(minPosition, Math.min(maxPosition, intendedPosition));
+        const clampedTranslation = clampedPosition - currentBasePosition;
 
-    const clampedPosition = Math.max(minPosition, Math.min(maxPosition, intendedPosition));
-    const clampedTranslation = clampedPosition - currentBasePosition;
-
-    gestureTranslateY.setValue(clampedTranslation);
-  };
+        gestureTranslateY.setValue(clampedTranslation);
+      }
+    }
+  );
 
   // Handles gesture state changes (begin/end) for snapping behavior
   const onHandlerStateChange = (event: any) => {
     const { state, translationY, velocityY } = event.nativeEvent;
 
     if (state === State.BEGAN) {
-      startPositionY.current = SCREEN_HEIGHT - currentSnapPoint;
+      console.log('Gesture began');
     } else if (state === State.END) {
+      console.log('Gesture ended with velocity:', velocityY);
       const currentBasePosition = SCREEN_HEIGHT - currentSnapPoint;
       const intendedPosition = currentBasePosition + translationY;
 

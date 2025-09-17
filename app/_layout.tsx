@@ -1,22 +1,20 @@
 
-import { Stack, useGlobalSearchParams } from 'expo-router';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform } from 'react-native';
-import { useEffect, useState } from 'react';
+import { Stack } from 'expo-router';
 import { setupErrorLogging } from '../utils/errorLogger';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts, Orbitron_400Regular, Orbitron_700Bold, Orbitron_900Black } from '@expo-google-fonts/orbitron';
+import { Platform } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
-
-const STORAGE_KEY = 'emulated_device';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useEffect, useState } from 'react';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
+const STORAGE_KEY = 'call-glitcher-settings';
+
 export default function RootLayout() {
-  const actualInsets = useSafeAreaInsets();
-  const { emulate } = useGlobalSearchParams<{ emulate?: string }>();
-  const [storedEmulate, setStoredEmulate] = useState<string | null>(null);
+  const [appIsReady, setAppIsReady] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Orbitron_400Regular,
@@ -25,57 +23,44 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    // Set up global error logging
-    setupErrorLogging();
-
-    if (Platform.OS === 'web') {
-      // If there's a new emulate parameter, store it
-      if (emulate) {
-        localStorage.setItem(STORAGE_KEY, emulate);
-        setStoredEmulate(emulate);
-      } else {
-        // If no emulate parameter, try to get from localStorage
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          setStoredEmulate(stored);
-        }
+    async function prepare() {
+      try {
+        console.log('Setting up error logging...');
+        setupErrorLogging();
+        
+        // Simulate loading time
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        console.log('App preparation complete');
+      } catch (e) {
+        console.error('Error during app preparation:', e);
+      } finally {
+        setAppIsReady(true);
       }
     }
-  }, [emulate]);
+
+    prepare();
+  }, []);
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (appIsReady && fontsLoaded) {
+      console.log('Hiding splash screen...');
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [appIsReady, fontsLoaded]);
 
-  if (!fontsLoaded) {
+  if (!appIsReady || !fontsLoaded) {
     return null;
   }
 
-  let insetsToUse = actualInsets;
-
-  if (Platform.OS === 'web') {
-    const simulatedInsets = {
-      ios: { top: 47, bottom: 20, left: 0, right: 0 },
-      android: { top: 40, bottom: 0, left: 0, right: 0 },
-    };
-
-    // Use stored emulate value if available, otherwise use the current emulate parameter
-    const deviceToEmulate = storedEmulate || emulate;
-    insetsToUse = deviceToEmulate ? simulatedInsets[deviceToEmulate as keyof typeof simulatedInsets] || actualInsets : actualInsets;
-  }
-
   return (
-    <SafeAreaProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'default',
-            }}
-          />
-        </GestureHandlerRootView>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

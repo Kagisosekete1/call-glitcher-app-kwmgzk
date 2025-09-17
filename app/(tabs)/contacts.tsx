@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
+import Icon from '../../components/Icon';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
-import Icon from '../../components/Icon';
 import SimpleBottomSheet from '../../components/BottomSheet';
+import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
 
 interface Contact {
   id: string;
@@ -20,20 +20,14 @@ export default function ContactsScreen() {
     { id: '3', name: 'Bob Johnson', phone: '+1 (555) 456-7890', autoJam: true },
   ]);
   
-  const [searchQuery, setSearchQuery] = useState('');
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
 
-  const filteredContacts = contacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    contact.phone.includes(searchQuery)
-  );
-
   const toggleAutoJam = (contactId: string) => {
     console.log('Toggling auto jam for contact:', contactId);
-    setContacts(prev =>
-      prev.map(contact =>
+    setContacts(prevContacts =>
+      prevContacts.map(contact =>
         contact.id === contactId
           ? { ...contact, autoJam: !contact.autoJam }
           : contact
@@ -43,10 +37,11 @@ export default function ContactsScreen() {
 
   const addContact = () => {
     if (!newContactName.trim() || !newContactPhone.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please fill in both name and phone number');
       return;
     }
 
+    console.log('Adding new contact:', newContactName, newContactPhone);
     const newContact: Contact = {
       id: Date.now().toString(),
       name: newContactName.trim(),
@@ -54,8 +49,7 @@ export default function ContactsScreen() {
       autoJam: false,
     };
 
-    console.log('Adding new contact:', newContact);
-    setContacts(prev => [...prev, newContact]);
+    setContacts(prevContacts => [...prevContacts, newContact]);
     setNewContactName('');
     setNewContactPhone('');
     setShowAddContact(false);
@@ -72,119 +66,92 @@ export default function ContactsScreen() {
           text: 'Remove',
           style: 'destructive',
           onPress: () => {
-            setContacts(prev => prev.filter(contact => contact.id !== contactId));
-          },
-        },
+            setContacts(prevContacts =>
+              prevContacts.filter(contact => contact.id !== contactId)
+            );
+          }
+        }
       ]
     );
   };
 
   return (
     <SafeAreaView style={commonStyles.container}>
-      <View style={{ flex: 1, paddingHorizontal: 20 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
         {/* Header */}
-        <View style={[commonStyles.section, { marginTop: 20, marginBottom: 10 }]}>
-          <Text style={commonStyles.title}>Auto-Jam Contacts</Text>
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.title}>Contacts</Text>
           <Text style={commonStyles.textSecondary}>
-            Select contacts to automatically jam when they call
+            Manage auto-jam settings for specific contacts
           </Text>
         </View>
 
-        {/* Search Bar */}
-        <View style={[commonStyles.card, { marginBottom: 10 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Icon name="search" size={20} color={colors.textSecondary} />
-            <TextInput
-              style={{
-                flex: 1,
-                marginLeft: 10,
-                color: colors.text,
-                fontSize: 16,
-                paddingVertical: 8,
-              }}
-              placeholder="Search contacts..."
-              placeholderTextColor={colors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+        {/* Add Contact Button */}
+        <View style={commonStyles.buttonContainer}>
+          <TouchableOpacity
+            style={[buttonStyles.primary, { marginBottom: 20 }]}
+            onPress={() => setShowAddContact(true)}
+          >
+            <Text style={[commonStyles.text, { color: colors.background }]}>
+              Add Contact
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Add Contact Button */}
-        <TouchableOpacity
-          style={[buttonStyles.primary, { marginBottom: 20 }]}
-          onPress={() => setShowAddContact(true)}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Icon name="add" size={20} color={colors.background} />
-            <Text style={{
-              color: colors.background,
-              fontSize: 16,
-              fontWeight: '600',
-              marginLeft: 8,
-            }}>
-              Add Manual Number
-            </Text>
-          </View>
-        </TouchableOpacity>
-
         {/* Contacts List */}
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-          {filteredContacts.map((contact) => (
-            <View key={contact.id} style={commonStyles.card}>
-              <View style={commonStyles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[commonStyles.text, { textAlign: 'left', marginBottom: 4 }]}>
-                    {contact.name}
+        {contacts.map(contact => (
+          <View key={contact.id} style={commonStyles.card}>
+            <View style={commonStyles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={commonStyles.subtitle}>{contact.name}</Text>
+                <Text style={commonStyles.textSecondary}>{contact.phone}</Text>
+              </View>
+              
+              <View style={commonStyles.centerRow}>
+                <TouchableOpacity
+                  onPress={() => toggleAutoJam(contact.id)}
+                  style={{
+                    backgroundColor: contact.autoJam ? colors.success : colors.grey,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    marginRight: 10,
+                  }}
+                >
+                  <Text style={[
+                    commonStyles.textSecondary,
+                    { 
+                      color: contact.autoJam ? colors.background : colors.text,
+                      fontSize: 12 
+                    }
+                  ]}>
+                    {contact.autoJam ? 'Auto-Jam ON' : 'Auto-Jam OFF'}
                   </Text>
-                  <Text style={[commonStyles.textSecondary, { textAlign: 'left' }]}>
-                    {contact.phone}
-                  </Text>
-                </View>
-                
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <TouchableOpacity
-                    style={{
-                      width: 50,
-                      height: 30,
-                      borderRadius: 15,
-                      backgroundColor: contact.autoJam ? colors.primary : colors.grey,
-                      justifyContent: 'center',
-                      alignItems: contact.autoJam ? 'flex-end' : 'flex-start',
-                      paddingHorizontal: 3,
-                    }}
-                    onPress={() => toggleAutoJam(contact.id)}
-                  >
-                    <View
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 12,
-                        backgroundColor: colors.text,
-                      }}
-                    />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={() => removeContact(contact.id)}
-                  >
-                    <Icon name="trash" size={20} color={colors.danger} />
-                  </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => removeContact(contact.id)}
+                  style={{ padding: 8 }}
+                >
+                  <Icon name="trash-outline" size={20} color={colors.danger} />
+                </TouchableOpacity>
               </View>
             </View>
-          ))}
-          
-          {filteredContacts.length === 0 && (
-            <View style={[commonStyles.card, { alignItems: 'center', padding: 40 }]}>
-              <Icon name="people-outline" size={40} color={colors.textSecondary} />
-              <Text style={[commonStyles.textSecondary, { marginTop: 10 }]}>
-                {searchQuery ? 'No contacts found' : 'No contacts added yet'}
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-      </View>
+          </View>
+        ))}
+
+        {contacts.length === 0 && (
+          <View style={[commonStyles.card, { alignItems: 'center', padding: 40 }]}>
+            <Icon name="people-outline" size={60} color={colors.textSecondary} />
+            <Text style={[commonStyles.text, { marginTop: 16 }]}>
+              No contacts added yet
+            </Text>
+            <Text style={commonStyles.textSecondary}>
+              Add contacts to enable auto-jamming
+            </Text>
+          </View>
+        )}
+      </ScrollView>
 
       {/* Add Contact Bottom Sheet */}
       <SimpleBottomSheet
@@ -192,54 +159,49 @@ export default function ContactsScreen() {
         onClose={() => setShowAddContact(false)}
       >
         <View style={{ padding: 20 }}>
-          <Text style={[commonStyles.subtitle, { marginBottom: 20 }]}>
-            Add Manual Number
-          </Text>
+          <Text style={commonStyles.subtitle}>Add New Contact</Text>
           
-          <View style={[commonStyles.card, { marginBottom: 15 }]}>
+          <View style={{ marginTop: 20 }}>
+            <Text style={[commonStyles.text, { marginBottom: 8 }]}>Name</Text>
             <TextInput
               style={{
+                backgroundColor: colors.backgroundAlt,
+                borderColor: colors.grey,
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 12,
                 color: colors.text,
-                fontSize: 16,
-                paddingVertical: 8,
+                marginBottom: 16,
               }}
-              placeholder="Contact Name"
-              placeholderTextColor={colors.textSecondary}
               value={newContactName}
               onChangeText={setNewContactName}
+              placeholder="Enter contact name"
+              placeholderTextColor={colors.textSecondary}
             />
-          </View>
-          
-          <View style={[commonStyles.card, { marginBottom: 20 }]}>
+
+            <Text style={[commonStyles.text, { marginBottom: 8 }]}>Phone Number</Text>
             <TextInput
               style={{
+                backgroundColor: colors.backgroundAlt,
+                borderColor: colors.grey,
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 12,
                 color: colors.text,
-                fontSize: 16,
-                paddingVertical: 8,
+                marginBottom: 20,
               }}
-              placeholder="Phone Number"
-              placeholderTextColor={colors.textSecondary}
               value={newContactPhone}
               onChangeText={setNewContactPhone}
+              placeholder="Enter phone number"
+              placeholderTextColor={colors.textSecondary}
               keyboardType="phone-pad"
             />
-          </View>
-          
-          <View style={{ flexDirection: 'row', gap: 10 }}>
+
             <TouchableOpacity
-              style={[buttonStyles.secondary, { flex: 1 }]}
-              onPress={() => setShowAddContact(false)}
-            >
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[buttonStyles.primary, { flex: 1 }]}
+              style={buttonStyles.primary}
               onPress={addContact}
             >
-              <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
+              <Text style={[commonStyles.text, { color: colors.background }]}>
                 Add Contact
               </Text>
             </TouchableOpacity>

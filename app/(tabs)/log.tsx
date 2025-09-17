@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { commonStyles, colors } from '../../styles/commonStyles';
 import Icon from '../../components/Icon';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 
 interface LogEntry {
   id: string;
@@ -19,7 +19,7 @@ export default function LogScreen() {
   const [logEntries] = useState<LogEntry[]>([
     {
       id: '1',
-      timestamp: new Date(Date.now() - 3600000), // 1 hour ago
+      timestamp: new Date(Date.now() - 3600000),
       contactName: 'John Doe',
       phoneNumber: '+1 (555) 123-4567',
       duration: 45,
@@ -28,7 +28,7 @@ export default function LogScreen() {
     },
     {
       id: '2',
-      timestamp: new Date(Date.now() - 7200000), // 2 hours ago
+      timestamp: new Date(Date.now() - 7200000),
       contactName: 'Jane Smith',
       phoneNumber: '+1 (555) 987-6543',
       duration: 30,
@@ -37,25 +37,16 @@ export default function LogScreen() {
     },
     {
       id: '3',
-      timestamp: new Date(Date.now() - 86400000), // 1 day ago
+      timestamp: new Date(Date.now() - 86400000),
       contactName: 'Bob Johnson',
       phoneNumber: '+1 (555) 456-7890',
       duration: 15,
       glitchType: 'Packet Loss',
       success: false,
     },
-    {
-      id: '4',
-      timestamp: new Date(Date.now() - 172800000), // 2 days ago
-      contactName: 'Unknown',
-      phoneNumber: '+1 (555) 111-2222',
-      duration: 60,
-      glitchType: 'Delay',
-      success: true,
-    },
   ]);
 
-  const formatTime = (date: Date) => {
+  const formatTime = (date: Date): string => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -71,122 +62,116 @@ export default function LogScreen() {
     }
   };
 
-  const getGlitchTypeIcon = (type: string) => {
+  const getGlitchTypeIcon = (type: string): keyof typeof Icon.prototype.props.name => {
     switch (type) {
       case 'Packet Loss':
         return 'wifi-outline';
       case 'Static Noise':
-        return 'volume-high';
+        return 'volume-high-outline';
       case 'Delay':
-        return 'time';
+        return 'time-outline';
       case 'Mixed':
-        return 'shuffle';
+        return 'shuffle-outline';
       default:
-        return 'radio';
+        return 'help-outline';
     }
   };
 
   const clearLog = () => {
-    console.log('Clear log requested');
+    console.log('Clear log requested - not implemented yet');
     // In a real app, this would clear the log entries
   };
 
   return (
     <SafeAreaView style={commonStyles.container}>
-      <View style={{ flex: 1, paddingHorizontal: 20 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
         {/* Header */}
-        <View style={[commonStyles.section, { marginTop: 20, marginBottom: 10 }]}>
+        <View style={commonStyles.section}>
           <View style={commonStyles.row}>
             <View style={{ flex: 1 }}>
-              <Text style={[commonStyles.title, { textAlign: 'left' }]}>
-                Call Log
-              </Text>
-              <Text style={[commonStyles.textSecondary, { textAlign: 'left' }]}>
+              <Text style={commonStyles.title}>Call Log</Text>
+              <Text style={commonStyles.textSecondary}>
                 History of jammed calls
               </Text>
             </View>
-            <TouchableOpacity onPress={clearLog}>
-              <Icon name="trash-outline" size={24} color={colors.danger} />
+            <TouchableOpacity
+              onPress={clearLog}
+              style={{
+                backgroundColor: colors.danger,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 6,
+              }}
+            >
+              <Text style={[commonStyles.textSecondary, { color: colors.text }]}>
+                Clear
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Stats */}
-        <View style={[commonStyles.card, { marginBottom: 20 }]}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={[commonStyles.subtitle, { color: colors.primary }]}>
-                {logEntries.filter(entry => entry.success).length}
-              </Text>
-              <Text style={commonStyles.textSecondary}>Successful</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={[commonStyles.subtitle, { color: colors.danger }]}>
-                {logEntries.filter(entry => !entry.success).length}
-              </Text>
-              <Text style={commonStyles.textSecondary}>Failed</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={[commonStyles.subtitle, { color: colors.text }]}>
-                {logEntries.length}
-              </Text>
-              <Text style={commonStyles.textSecondary}>Total</Text>
-            </View>
-          </View>
-        </View>
-
         {/* Log Entries */}
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-          {logEntries.map((entry) => (
-            <View key={entry.id} style={[commonStyles.card, { marginBottom: 10 }]}>
-              <View style={commonStyles.row}>
-                <View style={{ marginRight: 15 }}>
-                  <Icon
-                    name={getGlitchTypeIcon(entry.glitchType)}
-                    size={24}
-                    color={entry.success ? colors.primary : colors.danger}
-                  />
-                </View>
-                
-                <View style={{ flex: 1 }}>
-                  <View style={[commonStyles.row, { marginBottom: 4 }]}>
-                    <Text style={[commonStyles.text, { textAlign: 'left', fontWeight: '600' }]}>
-                      {entry.contactName}
-                    </Text>
+        {logEntries.map(entry => (
+          <View key={entry.id} style={commonStyles.card}>
+            <View style={commonStyles.row}>
+              <View style={{ flex: 1 }}>
+                <View style={commonStyles.row}>
+                  <Text style={commonStyles.subtitle}>{entry.contactName}</Text>
+                  <View style={{
+                    backgroundColor: entry.success ? colors.success : colors.danger,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 10,
+                  }}>
                     <Text style={[
                       commonStyles.textSecondary,
-                      { fontSize: 12, color: entry.success ? colors.primary : colors.danger }
+                      { color: colors.background, fontSize: 10 }
                     ]}>
                       {entry.success ? 'SUCCESS' : 'FAILED'}
                     </Text>
                   </View>
-                  
-                  <Text style={[commonStyles.textSecondary, { textAlign: 'left', marginBottom: 2 }]}>
-                    {entry.phoneNumber}
+                </View>
+                
+                <Text style={commonStyles.textSecondary}>
+                  {entry.phoneNumber}
+                </Text>
+                
+                <View style={[commonStyles.row, { marginTop: 8 }]}>
+                  <Text style={commonStyles.textSecondary}>
+                    {formatTime(entry.timestamp)}
                   </Text>
-                  
-                  <View style={commonStyles.row}>
-                    <Text style={[commonStyles.textSecondary, { fontSize: 12 }]}>
-                      {entry.glitchType} • {entry.duration}s • {formatTime(entry.timestamp)}
-                    </Text>
-                  </View>
+                  <Text style={commonStyles.textSecondary}>
+                    {entry.duration}s duration
+                  </Text>
                 </View>
               </View>
+              
+              <View style={{ alignItems: 'center', marginLeft: 16 }}>
+                <Icon
+                  name={getGlitchTypeIcon(entry.glitchType)}
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[commonStyles.textSecondary, { fontSize: 10, marginTop: 4 }]}>
+                  {entry.glitchType}
+                </Text>
+              </View>
             </View>
-          ))}
-          
-          {logEntries.length === 0 && (
-            <View style={[commonStyles.card, { alignItems: 'center', padding: 40 }]}>
-              <Icon name="list-outline" size={40} color={colors.textSecondary} />
-              <Text style={[commonStyles.textSecondary, { marginTop: 10 }]}>
-                No call history yet
-              </Text>
-            </View>
-          )}
-          
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </View>
+          </View>
+        ))}
+
+        {logEntries.length === 0 && (
+          <View style={[commonStyles.card, { alignItems: 'center', padding: 40 }]}>
+            <Icon name="list-outline" size={60} color={colors.textSecondary} />
+            <Text style={[commonStyles.text, { marginTop: 16 }]}>
+              No call history yet
+            </Text>
+            <Text style={commonStyles.textSecondary}>
+              Jammed calls will appear here
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

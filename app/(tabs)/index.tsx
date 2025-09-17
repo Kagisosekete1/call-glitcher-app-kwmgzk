@@ -1,201 +1,183 @@
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Animated, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
-import Icon from '../../components/Icon';
 import * as Haptics from 'expo-haptics';
+import React, { useState, useEffect } from 'react';
+import Icon from '../../components/Icon';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity, Animated, Alert } from 'react-native';
+import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
 
 export default function HomeScreen() {
   const [jamModeActive, setJamModeActive] = useState(false);
-  const [isInCall, setIsInCall] = useState(false);
-  const glowAnimation = new Animated.Value(0);
+  const [isCallActive, setIsCallActive] = useState(false);
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (jamModeActive) {
-      // Start glowing animation
-      Animated.loop(
+      console.log('Jam mode activated - starting pulse animation');
+      const pulse = Animated.loop(
         Animated.sequence([
-          Animated.timing(glowAnimation, {
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
             toValue: 1,
             duration: 1000,
-            useNativeDriver: false,
-          }),
-          Animated.timing(glowAnimation, {
-            toValue: 0,
-            duration: 1000,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      pulse.start();
+      return () => pulse.stop();
     } else {
-      glowAnimation.stopAnimation();
-      glowAnimation.setValue(0);
+      console.log('Jam mode deactivated - stopping pulse animation');
+      pulseAnim.setValue(1);
     }
   }, [jamModeActive]);
 
   const toggleJamMode = async () => {
-    console.log('Toggling jam mode:', !jamModeActive);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setJamModeActive(!jamModeActive);
+    try {
+      console.log('Toggling jam mode from', jamModeActive, 'to', !jamModeActive);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setJamModeActive(!jamModeActive);
+    } catch (error) {
+      console.error('Error toggling jam mode:', error);
+    }
   };
 
   const handleJamNow = async () => {
-    console.log('Jam Now pressed');
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert(
-      'Jam Activated',
-      'Call glitching simulation started!',
-      [{ text: 'OK' }]
-    );
+    try {
+      console.log('Jam Now button pressed');
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      Alert.alert(
+        'Jam Activated',
+        'Call jamming simulation started!',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error in jam now:', error);
+    }
   };
 
   const handleEndCall = async () => {
-    console.log('End Call pressed');
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert(
-      'Call Ended',
-      'Call has been terminated.',
-      [{ text: 'OK' }]
-    );
-    setIsInCall(false);
+    try {
+      console.log('End Call button pressed');
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setIsCallActive(false);
+      Alert.alert(
+        'Call Ended',
+        'Call has been terminated.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error ending call:', error);
+    }
   };
 
   const simulateIncomingCall = () => {
-    console.log('Simulating incoming call');
-    setIsInCall(true);
+    try {
+      console.log('Simulating incoming call');
+      setIsCallActive(true);
+      Alert.alert(
+        'Incoming Call',
+        'Simulated call from +1 (555) 123-4567',
+        [
+          { text: 'Decline', style: 'cancel', onPress: () => setIsCallActive(false) },
+          { text: 'Answer', onPress: () => console.log('Call answered') }
+        ]
+      );
+    } catch (error) {
+      console.error('Error simulating call:', error);
+    }
   };
-
-  const glowColor = glowAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [colors.primary, colors.accent],
-  });
 
   return (
     <SafeAreaView style={commonStyles.container}>
       <View style={commonStyles.content}>
-        {/* Status Section */}
-        <View style={[commonStyles.section, { marginTop: 40 }]}>
-          <Animated.View
-            style={{
-              backgroundColor: glowColor,
-              borderRadius: 60,
-              padding: 20,
-              marginBottom: 20,
-            }}
-          >
-            <Icon 
-              name="wifi" 
-              size={40} 
-              color={colors.background}
-            />
-          </Animated.View>
-          
+        {/* Status Display */}
+        <View style={commonStyles.section}>
           <Text style={commonStyles.title}>Call Glitcher</Text>
-          <Text style={[
-            commonStyles.subtitle,
-            { color: jamModeActive ? colors.primary : colors.textSecondary }
-          ]}>
-            {jamModeActive ? 'JAM MODE ACTIVE' : 'IDLE'}
+          <Text style={[commonStyles.text, { color: jamModeActive ? colors.success : colors.textSecondary }]}>
+            {jamModeActive ? 'Jam Mode Active' : 'Idle'}
           </Text>
         </View>
 
         {/* Main Toggle */}
-        <View style={[commonStyles.section, { marginTop: 40 }]}>
+        <View style={commonStyles.section}>
           <TouchableOpacity
+            onPress={toggleJamMode}
             style={[
+              commonStyles.card,
               {
-                width: 200,
-                height: 200,
-                borderRadius: 100,
-                backgroundColor: jamModeActive ? colors.primary : colors.backgroundAlt,
-                borderWidth: 4,
-                borderColor: jamModeActive ? colors.accent : colors.grey,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 20,
+                backgroundColor: jamModeActive ? colors.success : colors.card,
+                borderColor: jamModeActive ? colors.success : colors.grey,
               }
             ]}
-            onPress={toggleJamMode}
           >
-            <Icon 
-              name={jamModeActive ? "radio" : "radio-outline"} 
-              size={60} 
-              color={jamModeActive ? colors.background : colors.primary}
-            />
-            <Text style={{
-              color: jamModeActive ? colors.background : colors.primary,
-              fontSize: 16,
-              fontWeight: '700',
-              marginTop: 10,
-            }}>
-              {jamModeActive ? 'ON' : 'OFF'}
-            </Text>
+            <Animated.View
+              style={[
+                commonStyles.centerRow,
+                { transform: [{ scale: pulseAnim }] }
+              ]}
+            >
+              <Icon
+                name={jamModeActive ? 'radio' : 'radio-outline'}
+                size={60}
+                color={jamModeActive ? colors.background : colors.primary}
+              />
+              <View style={{ marginLeft: 20 }}>
+                <Text style={[
+                  commonStyles.subtitle,
+                  { color: jamModeActive ? colors.background : colors.text }
+                ]}>
+                  Jam Mode
+                </Text>
+                <Text style={[
+                  commonStyles.textSecondary,
+                  { color: jamModeActive ? colors.background : colors.textSecondary }
+                ]}>
+                  {jamModeActive ? 'Tap to disable' : 'Tap to enable'}
+                </Text>
+              </View>
+            </Animated.View>
           </TouchableOpacity>
         </View>
 
         {/* Quick Actions */}
-        <View style={[commonStyles.section, { marginTop: 20 }]}>
-          <Text style={commonStyles.textSecondary}>Quick Actions</Text>
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.subtitle}>Quick Actions</Text>
           
-          <View style={{ flexDirection: 'row', gap: 15, marginTop: 15 }}>
+          <View style={commonStyles.buttonContainer}>
             <TouchableOpacity
-              style={[buttonStyles.primary, { flex: 1 }]}
+              style={[buttonStyles.primary, { marginBottom: 12 }]}
               onPress={handleJamNow}
-              disabled={!jamModeActive}
             >
-              <Icon name="flash" size={20} color={colors.background} />
-              <Text style={{
-                color: colors.background,
-                fontSize: 14,
-                fontWeight: '600',
-                marginTop: 5,
-              }}>
+              <Text style={[commonStyles.text, { color: colors.background }]}>
                 Jam Now
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[buttonStyles.danger, { flex: 1 }]}
+              style={[buttonStyles.danger, { marginBottom: 12 }]}
               onPress={handleEndCall}
+              disabled={!isCallActive}
             >
-              <Icon name="call" size={20} color={colors.text} />
-              <Text style={{
-                color: colors.text,
-                fontSize: 14,
-                fontWeight: '600',
-                marginTop: 5,
-              }}>
+              <Text style={[commonStyles.text, { color: colors.text }]}>
                 End Call
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[buttonStyles.secondary]}
+              onPress={simulateIncomingCall}
+            >
+              <Text style={[commonStyles.text, { color: colors.text }]}>
+                Simulate Call
               </Text>
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Demo Section */}
-        <View style={[commonStyles.section, { marginTop: 40 }]}>
-          <Text style={commonStyles.textSecondary}>Demo Mode</Text>
-          <TouchableOpacity
-            style={[buttonStyles.secondary, { marginTop: 10 }]}
-            onPress={simulateIncomingCall}
-          >
-            <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
-              Simulate Incoming Call
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Call Status */}
-        {isInCall && (
-          <View style={[commonStyles.card, { marginTop: 20, backgroundColor: colors.danger }]}>
-            <Text style={[commonStyles.text, { color: colors.text }]}>
-              📞 Incoming Call Detected
-            </Text>
-            <Text style={[commonStyles.textSecondary, { color: colors.text }]}>
-              Jam mode will activate automatically
-            </Text>
-          </View>
-        )}
       </View>
     </SafeAreaView>
   );

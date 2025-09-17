@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { View, PanGestureHandler, State } from 'react-native-gesture-handler';
 import { Animated, StyleSheet } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { colors } from '../styles/commonStyles';
 
 interface SliderProps {
@@ -41,18 +41,22 @@ export default function Slider({
     translateX.setValue(valueToPosition(value));
   }, [value]);
 
-  const onGestureEvent = (event: any) => {
-    const { translationX } = event.nativeEvent;
-    const currentPosition = valueToPosition(value);
-    const newPosition = Math.max(0, Math.min(sliderWidth - thumbSize, currentPosition + translationX));
-    
-    translateX.setValue(newPosition);
-    
-    const newValue = positionToValue(newPosition);
-    if (newValue !== value) {
-      onValueChange(newValue);
+  const onGestureEvent = Animated.event(
+    [{ nativeEvent: { translationX: translateX } }],
+    { 
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const { translationX } = event.nativeEvent;
+        const currentPosition = valueToPosition(value);
+        const newPosition = Math.max(0, Math.min(sliderWidth - thumbSize, currentPosition + translationX));
+        
+        const newValue = positionToValue(newPosition);
+        if (newValue !== value) {
+          onValueChange(newValue);
+        }
+      }
     }
-  };
+  );
 
   const onHandlerStateChange = (event: any) => {
     if (event.nativeEvent.state === State.END) {
@@ -62,8 +66,8 @@ export default function Slider({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.track, { width: sliderWidth, height: trackHeight }]}>
+    <Animated.View style={styles.container}>
+      <Animated.View style={[styles.track, { width: sliderWidth, height: trackHeight }]}>
         <Animated.View
           style={[
             styles.activeTrack,
@@ -73,7 +77,7 @@ export default function Slider({
             },
           ]}
         />
-      </View>
+      </Animated.View>
       
       <PanGestureHandler
         onGestureEvent={onGestureEvent}
@@ -88,7 +92,7 @@ export default function Slider({
           ]}
         />
       </PanGestureHandler>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -114,7 +118,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.primary,
     position: 'absolute',
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
     elevation: 3,
   },
 });
