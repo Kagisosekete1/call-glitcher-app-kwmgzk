@@ -1,12 +1,19 @@
 
 import { Stack } from 'expo-router';
 import { setupErrorLogging } from '../utils/errorLogger';
-import { useFonts, Orbitron_400Regular, Orbitron_700Bold, Orbitron_900Black } from '@expo-google-fonts/orbitron';
+import { 
+  useFonts, 
+  Inter_400Regular, 
+  Inter_500Medium, 
+  Inter_600SemiBold, 
+  Inter_700Bold 
+} from '@expo-google-fonts/inter';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useEffect, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -17,9 +24,10 @@ export default function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
 
   const [fontsLoaded] = useFonts({
-    Orbitron_400Regular,
-    Orbitron_700Bold,
-    Orbitron_900Black,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   useEffect(() => {
@@ -28,8 +36,8 @@ export default function RootLayout() {
         console.log('Setting up error logging...');
         setupErrorLogging();
         
-        // Simulate loading time
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Simulate loading time for smooth splash screen experience
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
         console.log('App preparation complete');
       } catch (e) {
@@ -56,9 +64,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
+        <StatusBar style="dark" backgroundColor="#FFFFFF" />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="auth" />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

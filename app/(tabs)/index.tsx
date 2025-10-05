@@ -1,10 +1,25 @@
 
-import * as Haptics from 'expo-haptics';
 import React, { useState, useEffect } from 'react';
-import Icon from '../../components/Icon';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  ScrollView, 
+  Animated, 
+  Alert 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, TouchableOpacity, Animated, Alert } from 'react-native';
-import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import Icon from '../../components/Icon';
+import { 
+  colors, 
+  commonStyles, 
+  buttonStyles, 
+  spacing, 
+  borderRadius,
+  shadows 
+} from '../../styles/commonStyles';
 
 export default function HomeScreen() {
   const [jamModeActive, setJamModeActive] = useState(false);
@@ -19,13 +34,13 @@ export default function HomeScreen() {
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.2,
-            duration: 1000,
+            toValue: 1.1,
+            duration: 1500,
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 1000,
+            duration: 1500,
             useNativeDriver: true,
           }),
         ])
@@ -53,16 +68,6 @@ export default function HomeScreen() {
             duration: 150,
             useNativeDriver: true,
           }),
-          Animated.timing(glitchAnim, {
-            toValue: 1,
-            duration: 80,
-            useNativeDriver: true,
-          }),
-          Animated.timing(glitchAnim, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true,
-          }),
         ])
       );
       glitch.start();
@@ -84,58 +89,22 @@ export default function HomeScreen() {
 
   const handleJamNow = async () => {
     try {
-      console.log('Jam Now button pressed - starting call glitching');
+      console.log('Jam Now button pressed');
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       
       if (!isCallActive) {
         Alert.alert(
           'No Active Call',
-          'Start a call first, then use "Jam Now" to glitch the call audio and simulate poor network quality.',
+          'Start a call first, then use "Jam Now" to simulate poor network quality.',
           [{ text: 'OK' }]
         );
         return;
       }
 
-      setIsJamming(true);
+      setIsJamming(!isJamming);
       
-      Alert.alert(
-        'Call Jamming Active',
-        'Glitching call audio to simulate poor network quality. The caller will experience delays, static, and connection issues.',
-        [
-          { 
-            text: 'Stop Jamming', 
-            onPress: () => {
-              console.log('Stopping call jamming');
-              setIsJamming(false);
-            }
-          }
-        ]
-      );
-
-      // Auto-stop jamming after 30 seconds (configurable in settings)
-      setTimeout(() => {
-        console.log('Auto-stopping jamming after timeout');
-        setIsJamming(false);
-      }, 30000);
-
     } catch (error) {
       console.error('Error in jam now:', error);
-    }
-  };
-
-  const handleEndCall = async () => {
-    try {
-      console.log('End Call button pressed');
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setIsCallActive(false);
-      setIsJamming(false);
-      Alert.alert(
-        'Call Ended',
-        'Call has been terminated.',
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('Error ending call:', error);
     }
   };
 
@@ -144,22 +113,16 @@ export default function HomeScreen() {
       console.log('Simulating incoming call');
       Alert.alert(
         'Incoming Call',
-        'Simulated call from +1 (555) 123-4567\n\nAnswer the call, then use "Jam Now" to glitch it!',
+        'Simulated call from +1 (555) 123-4567\n\nAnswer to test jamming features!',
         [
           { 
             text: 'Decline', 
             style: 'cancel', 
-            onPress: () => {
-              console.log('Call declined');
-              setIsCallActive(false);
-            }
+            onPress: () => setIsCallActive(false)
           },
           { 
             text: 'Answer', 
-            onPress: () => {
-              console.log('Call answered - now you can jam it!');
-              setIsCallActive(true);
-            }
+            onPress: () => setIsCallActive(true)
           }
         ]
       );
@@ -169,148 +132,254 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={commonStyles.container}>
-      <View style={commonStyles.content}>
-        {/* Status Display */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.title}>Call Glitcher</Text>
-          <Text style={[commonStyles.text, { color: jamModeActive ? colors.success : colors.textSecondary }]}>
-            {jamModeActive ? 'Jam Mode Active' : 'Idle'}
-          </Text>
-          {isCallActive && (
-            <Text style={[commonStyles.textSecondary, { color: colors.warning, marginTop: 8 }]}>
-              📞 Call Active - Ready to Jam
+    <SafeAreaView style={commonStyles.safeArea}>
+      <ScrollView 
+        style={commonStyles.container}
+        contentContainerStyle={commonStyles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <LinearGradient
+          colors={[colors.gradient.start, colors.gradient.end]}
+          style={{
+            paddingTop: spacing.xl,
+            paddingBottom: spacing.xl,
+            paddingHorizontal: spacing.md,
+            borderBottomLeftRadius: borderRadius.xl,
+            borderBottomRightRadius: borderRadius.xl,
+            marginBottom: spacing.lg,
+          }}
+        >
+          <View style={commonStyles.center}>
+            <Text style={[commonStyles.title, { color: colors.background, marginBottom: spacing.xs }]}>
+              Call Glitcher
             </Text>
-          )}
-          {isJamming && (
-            <Animated.Text 
-              style={[
-                commonStyles.textSecondary, 
-                { 
-                  color: colors.danger, 
-                  marginTop: 4,
-                  opacity: glitchAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.3, 1]
-                  })
-                }
-              ]}
-            >
-              ⚡ JAMMING ACTIVE ⚡
-            </Animated.Text>
-          )}
-        </View>
-
-        {/* Main Toggle */}
-        <View style={commonStyles.section}>
-          <TouchableOpacity
-            onPress={toggleJamMode}
-            style={[
-              commonStyles.card,
-              {
-                backgroundColor: jamModeActive ? colors.success : colors.card,
-                borderColor: jamModeActive ? colors.success : colors.grey,
-              }
-            ]}
-          >
-            <Animated.View
-              style={[
-                commonStyles.centerRow,
-                { transform: [{ scale: pulseAnim }] }
-              ]}
-            >
-              <Icon
-                name={jamModeActive ? 'radio' : 'radio-outline'}
-                size={60}
-                color={jamModeActive ? colors.background : colors.primary}
-              />
-              <View style={{ marginLeft: 20 }}>
-                <Text style={[
-                  commonStyles.subtitle,
-                  { color: jamModeActive ? colors.background : colors.text }
-                ]}>
-                  Jam Mode
-                </Text>
-                <Text style={[
-                  commonStyles.textSecondary,
-                  { color: jamModeActive ? colors.background : colors.textSecondary }
-                ]}>
-                  {jamModeActive ? 'Tap to disable' : 'Tap to enable'}
+            <View style={[commonStyles.centerRow, { marginBottom: spacing.sm }]}>
+              <View style={[
+                commonStyles.statusIndicator,
+                jamModeActive ? commonStyles.statusActive : commonStyles.statusInactive
+              ]} />
+              <Text style={[commonStyles.body, { 
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontWeight: '500'
+              }]}>
+                {jamModeActive ? 'Jam Mode Active' : 'Standby Mode'}
+              </Text>
+            </View>
+            {isCallActive && (
+              <View style={[commonStyles.badge, { backgroundColor: colors.warning }]}>
+                <Text style={[commonStyles.badgeText, { color: colors.background }]}>
+                  📞 Call Active
                 </Text>
               </View>
-            </Animated.View>
-          </TouchableOpacity>
-        </View>
+            )}
+          </View>
+        </LinearGradient>
 
-        {/* How It Works */}
-        <View style={commonStyles.section}>
-          <Text style={[commonStyles.textSecondary, { textAlign: 'center', marginBottom: 16 }]}>
-            💡 How it works: Answer a call, then press "Jam Now" to simulate poor network quality with glitches, delays, and static.
-          </Text>
-        </View>
-
-        {/* Quick Actions */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.subtitle}>Quick Actions</Text>
-          
-          <View style={commonStyles.buttonContainer}>
+        <View style={commonStyles.content}>
+          {/* Main Control Card */}
+          <View style={[commonStyles.card, { marginBottom: spacing.lg }]}>
             <TouchableOpacity
-              style={[
-                buttonStyles.primary, 
-                { 
-                  marginBottom: 12,
-                  backgroundColor: isJamming ? colors.danger : colors.primary,
-                  opacity: !isCallActive ? 0.5 : 1
-                }
-              ]}
-              onPress={handleJamNow}
+              onPress={toggleJamMode}
+              style={{
+                alignItems: 'center',
+                paddingVertical: spacing.lg,
+              }}
             >
-              <Text style={[commonStyles.text, { color: colors.background }]}>
-                {isJamming ? 'Stop Jamming' : 'Jam Now'}
+              <Animated.View
+                style={[
+                  {
+                    width: 120,
+                    height: 120,
+                    borderRadius: 60,
+                    backgroundColor: jamModeActive ? colors.primary : colors.backgroundAlt,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: spacing.md,
+                    ...shadows.lg,
+                  },
+                  { transform: [{ scale: pulseAnim }] }
+                ]}
+              >
+                <Icon
+                  name={jamModeActive ? 'radio' : 'radio-outline'}
+                  size={50}
+                  color={jamModeActive ? colors.background : colors.primary}
+                />
+              </Animated.View>
+              
+              <Text style={[commonStyles.subtitle, { textAlign: 'center', marginBottom: spacing.xs }]}>
+                {jamModeActive ? 'Jam Mode Active' : 'Activate Jam Mode'}
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                buttonStyles.danger, 
-                { 
-                  marginBottom: 12,
-                  opacity: !isCallActive ? 0.5 : 1
-                }
-              ]}
-              onPress={handleEndCall}
-              disabled={!isCallActive}
-            >
-              <Text style={[commonStyles.text, { color: colors.background }]}>
-                End Call
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[buttonStyles.secondary]}
-              onPress={simulateIncomingCall}
-            >
-              <Text style={[commonStyles.text, { color: colors.text }]}>
-                Simulate Call
+              <Text style={[commonStyles.caption, { textAlign: 'center' }]}>
+                {jamModeActive ? 'Tap to disable' : 'Tap to enable call jamming'}
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Instructions */}
-        <View style={[commonStyles.card, { marginTop: 20 }]}>
-          <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>
-            📋 Instructions
-          </Text>
-          <Text style={[commonStyles.textSecondary, { textAlign: 'left', lineHeight: 20 }]}>
-            1. Enable "Jam Mode" above{'\n'}
-            2. Receive or make a phone call{'\n'}
-            3. During the call, press "Jam Now"{'\n'}
-            4. The caller will hear glitches, delays, and static{'\n'}
-            5. Adjust glitch settings in the Settings tab
-          </Text>
+          {/* Quick Actions */}
+          <View style={commonStyles.section}>
+            <Text style={[commonStyles.sectionTitle, { marginBottom: spacing.md }]}>
+              Quick Actions
+            </Text>
+            
+            <TouchableOpacity
+              style={[
+                buttonStyles.primary,
+                { 
+                  marginBottom: spacing.md,
+                  backgroundColor: isJamming ? colors.danger : colors.primary,
+                  opacity: !isCallActive ? 0.6 : 1
+                }
+              ]}
+              onPress={handleJamNow}
+              disabled={!isCallActive}
+            >
+              <View style={commonStyles.centerRow}>
+                {isJamming && (
+                  <Animated.View style={{ opacity: glitchAnim, marginRight: spacing.sm }}>
+                    <Icon name="flash" size={20} color={colors.background} />
+                  </Animated.View>
+                )}
+                <Text style={buttonStyles.primaryText}>
+                  {isJamming ? 'Stop Jamming' : 'Jam Now'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[buttonStyles.secondary, { marginBottom: spacing.md }]}
+              onPress={simulateIncomingCall}
+            >
+              <View style={commonStyles.centerRow}>
+                <Icon name="call" size={20} color={colors.text} style={{ marginRight: spacing.sm }} />
+                <Text style={buttonStyles.secondaryText}>
+                  Simulate Call
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* How It Works */}
+          <View style={[commonStyles.card, { backgroundColor: colors.backgroundAlt }]}>
+            <View style={[commonStyles.cardHeader, { marginBottom: spacing.md }]}>
+              <Icon name="information-circle" size={24} color={colors.primary} />
+              <Text style={[commonStyles.subtitle, { flex: 1, marginLeft: spacing.sm, marginBottom: 0 }]}>
+                How It Works
+              </Text>
+            </View>
+            
+            <View style={{ marginBottom: spacing.sm }}>
+              <View style={[commonStyles.centerRow, { justifyContent: 'flex-start', marginBottom: spacing.xs }]}>
+                <View style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: colors.primary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: spacing.sm,
+                }}>
+                  <Text style={[commonStyles.caption, { color: colors.background, fontWeight: '600' }]}>1</Text>
+                </View>
+                <Text style={commonStyles.body}>Enable Jam Mode above</Text>
+              </View>
+              
+              <View style={[commonStyles.centerRow, { justifyContent: 'flex-start', marginBottom: spacing.xs }]}>
+                <View style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: colors.primary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: spacing.sm,
+                }}>
+                  <Text style={[commonStyles.caption, { color: colors.background, fontWeight: '600' }]}>2</Text>
+                </View>
+                <Text style={commonStyles.body}>Receive or make a call</Text>
+              </View>
+              
+              <View style={[commonStyles.centerRow, { justifyContent: 'flex-start', marginBottom: spacing.xs }]}>
+                <View style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: colors.primary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: spacing.sm,
+                }}>
+                  <Text style={[commonStyles.caption, { color: colors.background, fontWeight: '600' }]}>3</Text>
+                </View>
+                <Text style={commonStyles.body}>Press "Jam Now" during call</Text>
+              </View>
+              
+              <View style={[commonStyles.centerRow, { justifyContent: 'flex-start' }]}>
+                <View style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: colors.primary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: spacing.sm,
+                }}>
+                  <Text style={[commonStyles.caption, { color: colors.background, fontWeight: '600' }]}>4</Text>
+                </View>
+                <Text style={commonStyles.body}>Caller hears glitches & delays</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Status Cards */}
+          {(isCallActive || isJamming) && (
+            <View style={commonStyles.section}>
+              {isCallActive && (
+                <View style={[commonStyles.card, { 
+                  backgroundColor: colors.warning,
+                  marginBottom: spacing.md 
+                }]}>
+                  <View style={commonStyles.centerRow}>
+                    <Icon name="call" size={24} color={colors.background} />
+                    <Text style={[commonStyles.body, { 
+                      color: colors.background, 
+                      marginLeft: spacing.sm,
+                      fontWeight: '600'
+                    }]}>
+                      Call Active - Ready to Jam
+                    </Text>
+                  </View>
+                </View>
+              )}
+              
+              {isJamming && (
+                <Animated.View style={[
+                  commonStyles.card, 
+                  { 
+                    backgroundColor: colors.danger,
+                    opacity: glitchAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.8, 1]
+                    })
+                  }
+                ]}>
+                  <View style={commonStyles.centerRow}>
+                    <Icon name="flash" size={24} color={colors.background} />
+                    <Text style={[commonStyles.body, { 
+                      color: colors.background, 
+                      marginLeft: spacing.sm,
+                      fontWeight: '600'
+                    }]}>
+                      ⚡ JAMMING ACTIVE ⚡
+                    </Text>
+                  </View>
+                </Animated.View>
+              )}
+            </View>
+          )}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

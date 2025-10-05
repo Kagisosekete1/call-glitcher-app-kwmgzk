@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Animated, StyleSheet } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
-import { colors } from '../styles/commonStyles';
+import { colors, spacing, borderRadius, shadows } from '../styles/commonStyles';
 
 interface SliderProps {
   value: number;
@@ -22,95 +22,87 @@ export default function Slider({
   const translateX = React.useRef(new Animated.Value(0)).current;
   const sliderWidth = 280;
   const thumbSize = 24;
-  const trackHeight = 4;
 
-  // Calculate position based on value
-  const valueToPosition = (val: number) => {
+  const valueToPosition = (val: number): number => {
     const percentage = (val - minimumValue) / (maximumValue - minimumValue);
     return percentage * (sliderWidth - thumbSize);
   };
 
-  // Calculate value based on position
-  const positionToValue = (pos: number) => {
+  const positionToValue = (pos: number): number => {
     const percentage = pos / (sliderWidth - thumbSize);
     const rawValue = minimumValue + percentage * (maximumValue - minimumValue);
     return Math.round(rawValue / step) * step;
   };
 
   React.useEffect(() => {
-    translateX.setValue(valueToPosition(value));
+    const position = valueToPosition(value);
+    translateX.setValue(position);
   }, [value]);
 
-  const onGestureEvent = Animated.event(
-    [{ nativeEvent: { translationX: translateX } }],
-    { 
-      useNativeDriver: false,
-      listener: (event: any) => {
-        const { translationX } = event.nativeEvent;
-        const currentPosition = valueToPosition(value);
-        const newPosition = Math.max(0, Math.min(sliderWidth - thumbSize, currentPosition + translationX));
-        
-        const newValue = positionToValue(newPosition);
-        if (newValue !== value) {
-          onValueChange(newValue);
-        }
-      }
-    }
-  );
-
   const onHandlerStateChange = (event: any) => {
-    if (event.nativeEvent.state === State.END) {
-      const finalPosition = valueToPosition(value);
-      translateX.setValue(finalPosition);
+    if (event.nativeEvent.state === State.BEGAN) {
+      console.log('Slider gesture began');
+    } else if (event.nativeEvent.state === State.ACTIVE) {
+      const newPosition = Math.max(0, Math.min(sliderWidth - thumbSize, event.nativeEvent.translationX + valueToPosition(value)));
+      const newValue = positionToValue(newPosition);
+      
+      if (newValue !== value) {
+        onValueChange(newValue);
+      }
+    } else if (event.nativeEvent.state === State.END) {
+      console.log('Slider gesture ended with value:', value);
     }
   };
 
   return (
-    <Animated.View style={styles.container}>
-      <Animated.View style={[styles.track, { width: sliderWidth, height: trackHeight }]}>
+    <View style={styles.container}>
+      <View style={[styles.track, { width: sliderWidth }]}>
         <Animated.View
           style={[
             styles.activeTrack,
             {
-              width: Animated.add(translateX, thumbSize / 2),
-              height: trackHeight,
+              width: translateX.interpolate({
+                inputRange: [0, sliderWidth - thumbSize],
+                outputRange: [thumbSize / 2, sliderWidth - thumbSize / 2],
+                extrapolate: 'clamp',
+              }),
             },
           ]}
         />
-      </Animated.View>
-      
-      <PanGestureHandler
-        onGestureEvent={onGestureEvent}
-        onHandlerStateChange={onHandlerStateChange}
-      >
-        <Animated.View
-          style={[
-            styles.thumb,
-            {
-              transform: [{ translateX }],
-            },
-          ]}
-        />
-      </PanGestureHandler>
-    </Animated.View>
+        <PanGestureHandler onHandlerStateChange={onHandlerStateChange}>
+          <Animated.View
+            style={[
+              styles.thumb,
+              {
+                transform: [{ translateX }],
+              },
+            ]}
+          />
+        </PanGestureHandler>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    height: 40,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    paddingVertical: spacing.md,
   },
   track: {
-    backgroundColor: colors.grey,
+    height: 4,
+    backgroundColor: colors.border,
     borderRadius: 2,
-    position: 'absolute',
+    position: 'relative',
+    justifyContent: 'center',
   },
   activeTrack: {
+    height: 4,
     backgroundColor: colors.primary,
     borderRadius: 2,
     position: 'absolute',
+    left: 0,
   },
   thumb: {
     width: 24,
@@ -118,13 +110,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.primary,
     position: 'absolute',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    top: -10,
+    ...shadows.md,
+    borderWidth: 2,
+    borderColor: colors.background,
   },
 });

@@ -1,7 +1,8 @@
 
 import { Tabs } from 'expo-router';
-import { colors } from '../../styles/commonStyles';
+import { colors, spacing } from '../../styles/commonStyles';
 import Icon from '../../components/Icon';
+import { Platform } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -9,18 +10,28 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.backgroundAlt,
-          borderTopColor: colors.grey,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 80,
-          paddingBottom: 20,
-          paddingTop: 10,
+          height: Platform.OS === 'ios' ? 88 : 68,
+          paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.sm,
+          paddingTop: spacing.sm,
+          paddingHorizontal: spacing.sm,
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 8,
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarInactiveTintColor: colors.textLight,
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '600',
+          fontWeight: '500',
+          fontFamily: 'Inter_500Medium',
+        },
+        tabBarIconStyle: {
+          marginBottom: 2,
         },
       }}
     >
@@ -54,9 +65,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="log"
         options={{
-          title: 'Log',
+          title: 'History',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="list" size={size} color={color} />
+            <Icon name="time" size={size} color={color} />
           ),
         }}
       />
