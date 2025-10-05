@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
+import PremiumBadge from '../../components/PremiumBadge';
+import SimpleBottomSheet from '../../components/BottomSheet';
+import { supabase } from '../integrations/supabase/client';
 import { 
   colors, 
   commonStyles, 
@@ -19,60 +22,149 @@ import {
   spacing, 
   borderRadius 
 } from '../../styles/commonStyles';
-import SimpleBottomSheet from '../../components/BottomSheet';
 
 interface Contact {
   id: string;
   name: string;
   phone: string;
-  autoJam: boolean;
+  auto_jam: boolean;
+  user_id?: string;
 }
 
 export default function ContactsScreen() {
   const [contacts, setContacts] = useState<Contact[]>([
-    { id: '1', name: 'John Doe', phone: '+1 (555) 123-4567', autoJam: true },
-    { id: '2', name: 'Jane Smith', phone: '+1 (555) 987-6543', autoJam: false },
-    { id: '3', name: 'Mike Johnson', phone: '+1 (555) 456-7890', autoJam: true },
-    { id: '4', name: 'Sarah Wilson', phone: '+1 (555) 321-0987', autoJam: false },
+    { id: '1', name: 'Thabo Mthembu', phone: '+27 82 123 4567', auto_jam: true },
+    { id: '2', name: 'Nomsa Dlamini', phone: '+27 83 987 6543', auto_jam: false },
   ]);
   
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  useEffect(() => {
+    loadContacts();
+    loadUserProfile();
+  }, []);
+
+  async function loadUserProfile() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        setUserProfile(data);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  }
+
+  async function loadContacts() {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data, error } = await supabase
+          .from('contacts')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('name');
+
+        if (error) throw error;
+
+        if (data) {
+          setContacts(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filteredContacts = contacts.filter(contact =>
     contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     contact.phone.includes(searchQuery)
   );
 
-  const toggleAutoJam = (contactId: string) => {
-    console.log('Toggling auto jam for contact:', contactId);
-    setContacts(contacts.map(contact =>
-      contact.id === contactId
-        ? { ...contact, autoJam: !contact.autoJam }
-        : contact
-    ));
+  const toggleAutoJam = async (contactId: string) => {
+    try {
+      const contact = contacts.find(c => c.id === contactId);
+      if (!contact) return;
+
+      const newAutoJam = !contact.auto_jam;
+      
+      // Update local state immediately for better UX
+      setContacts(contacts.map(c =>
+        c.id === contactId ? { ...c, auto_jam: newAutoJam } : c
+      ));
+
+      // Update in database
+      const { error } = await supabase
+        .from('contacts')
+        .update({ auto_jam: newAutoJam })
+        .eq('id', contactId);
+
+      if (error) {
+        // Revert local state if database update fails
+        setContacts(contacts.map(c =>
+          c.id === contactId ? { ...c, auto_jam: !newAutoJam } : c
+        ));
+        throw error;
+      }
+
+      console.log('Toggled auto jam for contact:', contactId, 'to:', newAutoJam);
+    } catch (error) {
+      console.error('Error toggling auto jam:', error);
+      Alert.alert('Error', 'Failed to update contact settings');
+    }
   };
 
-  const addContact = () => {
+  const addContact = async () => {
     if (!newContactName.trim() || !newContactPhone.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    const newContact: Contact = {
-      id: Date.now().toString(),
-      name: newContactName.trim(),
-      phone: newContactPhone.trim(),
-      autoJam: false,
-    };
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'You must be logged in to add contacts');
+        return;
+      }
 
-    console.log('Adding new contact:', newContact);
-    setContacts([...contacts, newContact]);
-    setNewContactName('');
-    setNewContactPhone('');
-    setShowAddContact(false);
+      const newContact = {
+        user_id: user.id,
+        name: newContactName.trim(),
+        phone: newContactPhone.trim(),
+        auto_jam: false,
+      };
+
+      const { data, error } = await supabase
+        .from('contacts')
+        .insert([newContact])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      console.log('Adding new contact:', data);
+      setContacts([...contacts, data]);
+      setNewContactName('');
+      setNewContactPhone('');
+      setShowAddContact(false);
+    } catch (error) {
+      console.error('Error adding contact:', error);
+      Alert.alert('Error', 'Failed to add contact');
+    }
   };
 
   const removeContact = (contactId: string) => {
@@ -84,9 +176,21 @@ export default function ContactsScreen() {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => {
-            console.log('Removing contact:', contactId);
-            setContacts(contacts.filter(contact => contact.id !== contactId));
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('contacts')
+                .delete()
+                .eq('id', contactId);
+
+              if (error) throw error;
+
+              console.log('Removing contact:', contactId);
+              setContacts(contacts.filter(contact => contact.id !== contactId));
+            } catch (error) {
+              console.error('Error removing contact:', error);
+              Alert.alert('Error', 'Failed to remove contact');
+            }
           },
         },
       ]
@@ -104,12 +208,17 @@ export default function ContactsScreen() {
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
         }}>
-          <Text style={[commonStyles.title, { textAlign: 'left', marginBottom: spacing.sm }]}>
-            Contacts
-          </Text>
-          <Text style={commonStyles.bodySecondary}>
-            Manage auto-jam settings for your contacts
-          </Text>
+          <View style={commonStyles.centerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[commonStyles.title, { textAlign: 'left', marginBottom: spacing.sm }]}>
+                Contacts
+              </Text>
+              <Text style={commonStyles.bodySecondary}>
+                Manage auto-jam settings for your contacts
+              </Text>
+            </View>
+            <PremiumBadge isPremium={userProfile?.is_premium || false} />
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -157,22 +266,25 @@ export default function ContactsScreen() {
                         width: 40,
                         height: 40,
                         borderRadius: 20,
-                        backgroundColor: contact.autoJam ? colors.primary : colors.backgroundAlt,
+                        backgroundColor: contact.auto_jam ? colors.primary : colors.backgroundAlt,
                         alignItems: 'center',
                         justifyContent: 'center',
                         marginRight: spacing.md,
                       }}>
                         <Text style={[commonStyles.body, { 
-                          color: contact.autoJam ? colors.background : colors.text,
+                          color: contact.auto_jam ? colors.background : colors.text,
                           fontWeight: '600'
                         }]}>
                           {contact.name.charAt(0).toUpperCase()}
                         </Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={[commonStyles.body, { fontWeight: '600', marginBottom: 2 }]}>
-                          {contact.name}
-                        </Text>
+                        <View style={commonStyles.centerRow}>
+                          <Text style={[commonStyles.body, { fontWeight: '600', marginBottom: 2 }]}>
+                            {contact.name}
+                          </Text>
+                          <PremiumBadge isPremium={Math.random() > 0.5} size="small" />
+                        </View>
                         <Text style={commonStyles.caption}>
                           {contact.phone}
                         </Text>
@@ -186,10 +298,10 @@ export default function ContactsScreen() {
                         Auto Jam
                       </Text>
                       <Switch
-                        value={contact.autoJam}
+                        value={contact.auto_jam}
                         onValueChange={() => toggleAutoJam(contact.id)}
                         trackColor={{ false: colors.border, true: colors.primaryLight }}
-                        thumbColor={contact.autoJam ? colors.primary : colors.textLight}
+                        thumbColor={contact.auto_jam ? colors.primary : colors.textLight}
                       />
                     </View>
                     
@@ -205,7 +317,7 @@ export default function ContactsScreen() {
                   </View>
                 </View>
                 
-                {contact.autoJam && (
+                {contact.auto_jam && (
                   <View style={[commonStyles.badge, { 
                     marginTop: spacing.sm,
                     backgroundColor: colors.success 

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
+import PremiumBadge from '../../components/PremiumBadge';
+import { supabase } from '../integrations/supabase/client';
 import { 
   colors, 
   commonStyles, 
@@ -19,64 +21,88 @@ import {
 
 interface LogEntry {
   id: string;
-  timestamp: Date;
-  contactName: string;
-  phoneNumber: string;
+  contact_name: string;
+  phone_number: string;
   duration: number;
-  glitchType: string;
+  glitch_type: string;
   success: boolean;
+  created_at: string;
+  user_id?: string;
 }
 
 export default function LogScreen() {
-  const [logEntries] = useState<LogEntry[]>([
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([
     {
       id: '1',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-      contactName: 'John Doe',
-      phoneNumber: '+1 (555) 123-4567',
+      created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+      contact_name: 'Sipho Ndlovu',
+      phone_number: '+27 82 123 4567',
       duration: 45,
-      glitchType: 'Mixed',
+      glitch_type: 'Mixed',
       success: true,
     },
     {
       id: '2',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      contactName: 'Jane Smith',
-      phoneNumber: '+1 (555) 987-6543',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+      contact_name: 'Lerato Molefe',
+      phone_number: '+27 83 987 6543',
       duration: 23,
-      glitchType: 'Static Noise',
-      success: true,
-    },
-    {
-      id: '3',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5), // 5 hours ago
-      contactName: 'Mike Johnson',
-      phoneNumber: '+1 (555) 456-7890',
-      duration: 12,
-      glitchType: 'Delay',
-      success: false,
-    },
-    {
-      id: '4',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-      contactName: 'Sarah Wilson',
-      phoneNumber: '+1 (555) 321-0987',
-      duration: 67,
-      glitchType: 'Packet Loss',
-      success: true,
-    },
-    {
-      id: '5',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
-      contactName: 'Unknown',
-      phoneNumber: '+1 (555) 999-8888',
-      duration: 34,
-      glitchType: 'Mixed',
+      glitch_type: 'Static Noise',
       success: true,
     },
   ]);
 
-  const formatTime = (date: Date): string => {
+  const [loading, setLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  useEffect(() => {
+    loadCallHistory();
+    loadUserProfile();
+  }, []);
+
+  async function loadUserProfile() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        setUserProfile(data);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  }
+
+  async function loadCallHistory() {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data, error } = await supabase
+          .from('call_history')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          setLogEntries(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading call history:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const formatTime = (dateString: string): string => {
+    const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / (1000 * 60));
@@ -116,10 +142,25 @@ export default function LogScreen() {
         {
           text: 'Clear',
           style: 'destructive',
-          onPress: () => {
-            console.log('Clearing call history');
-            // In a real app, you would clear the log entries here
-            Alert.alert('Success', 'Call history cleared');
+          onPress: async () => {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                const { error } = await supabase
+                  .from('call_history')
+                  .delete()
+                  .eq('user_id', user.id);
+
+                if (error) throw error;
+
+                console.log('Clearing call history');
+                setLogEntries([]);
+                Alert.alert('Success', 'Call history cleared');
+              }
+            } catch (error) {
+              console.error('Error clearing call history:', error);
+              Alert.alert('Error', 'Failed to clear call history');
+            }
           },
         },
       ]
@@ -127,6 +168,7 @@ export default function LogScreen() {
   };
 
   const getSuccessRate = (): number => {
+    if (logEntries.length === 0) return 0;
     const successfulCalls = logEntries.filter(entry => entry.success).length;
     return Math.round((successfulCalls / logEntries.length) * 100);
   };
@@ -146,12 +188,17 @@ export default function LogScreen() {
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
         }}>
-          <Text style={[commonStyles.title, { textAlign: 'left', marginBottom: spacing.sm }]}>
-            Call History
-          </Text>
-          <Text style={commonStyles.bodySecondary}>
-            Track your jamming sessions and statistics
-          </Text>
+          <View style={commonStyles.centerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[commonStyles.title, { textAlign: 'left', marginBottom: spacing.sm }]}>
+                Call History
+              </Text>
+              <Text style={commonStyles.bodySecondary}>
+                Track your jamming sessions and statistics
+              </Text>
+            </View>
+            <PremiumBadge isPremium={userProfile?.is_premium || false} />
+          </View>
         </View>
 
         <ScrollView 
@@ -244,28 +291,31 @@ export default function LogScreen() {
                         />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={[commonStyles.body, { fontWeight: '600', marginBottom: 2 }]}>
-                          {entry.contactName}
-                        </Text>
+                        <View style={commonStyles.centerRow}>
+                          <Text style={[commonStyles.body, { fontWeight: '600', marginBottom: 2 }]}>
+                            {entry.contact_name}
+                          </Text>
+                          <PremiumBadge isPremium={Math.random() > 0.5} size="small" />
+                        </View>
                         <Text style={commonStyles.caption}>
-                          {entry.phoneNumber}
+                          {entry.phone_number}
                         </Text>
                       </View>
                     </View>
                     <Text style={[commonStyles.caption, { color: colors.textLight }]}>
-                      {formatTime(entry.timestamp)}
+                      {formatTime(entry.created_at)}
                     </Text>
                   </View>
                   
                   <View style={[commonStyles.row, { marginBottom: spacing.sm }]}>
                     <View style={commonStyles.centerRow}>
                       <Icon 
-                        name={getGlitchTypeIcon(entry.glitchType) as any} 
+                        name={getGlitchTypeIcon(entry.glitch_type) as any} 
                         size={16} 
                         color={colors.textLight} 
                       />
                       <Text style={[commonStyles.caption, { marginLeft: spacing.xs }]}>
-                        {entry.glitchType}
+                        {entry.glitch_type}
                       </Text>
                     </View>
                     <Text style={[commonStyles.caption, { color: colors.textLight }]}>

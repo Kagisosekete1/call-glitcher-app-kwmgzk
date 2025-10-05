@@ -1,6 +1,11 @@
 
+import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
-import { setupErrorLogging } from '../utils/errorLogger';
+import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { 
   useFonts, 
   Inter_400Regular, 
@@ -8,20 +13,17 @@ import {
   Inter_600SemiBold, 
   Inter_700Bold 
 } from '@expo-google-fonts/inter';
-import { Platform } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import * as SplashScreen from 'expo-splash-screen';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useEffect, useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
+import { setupErrorLogging } from '../utils/errorLogger';
+import { supabase } from './integrations/supabase/client';
+import type { Session } from '@supabase/supabase-js';
+import SplashScreenComponent from '../components/SplashScreen';
 
-// Keep the splash screen visible while we fetch resources
-SplashScreen.preventAutoHideAsync();
-
-const STORAGE_KEY = 'call-glitcher-settings';
+const STORAGE_KEY = 'call-glitcher-onboarding-complete';
 
 export default function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [showSplash, setShowSplash] = useState(true);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -33,15 +35,22 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-        console.log('Setting up error logging...');
+        // Set up error logging
         setupErrorLogging();
         
-        // Simulate loading time for smooth splash screen experience
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        console.log('App preparation complete');
+        // Get initial session
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+
+        // Listen for auth changes
+        supabase.auth.onAuthStateChange((_event, session) => {
+          setSession(session);
+        });
+
+        // Keep the splash screen visible while we fetch resources
+        await SplashScreen.preventAutoHideAsync();
       } catch (e) {
-        console.error('Error during app preparation:', e);
+        console.warn(e);
       } finally {
         setAppIsReady(true);
       }
@@ -52,7 +61,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (appIsReady && fontsLoaded) {
-      console.log('Hiding splash screen...');
+      // Hide the splash screen after fonts are loaded
       SplashScreen.hideAsync();
     }
   }, [appIsReady, fontsLoaded]);
@@ -61,14 +70,27 @@ export default function RootLayout() {
     return null;
   }
 
+  if (showSplash) {
+    return (
+      <SplashScreenComponent 
+        onFinish={() => setShowSplash(false)} 
+      />
+    );
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="dark" backgroundColor="#FFFFFF" />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="auth" />
+        <StatusBar style="light" backgroundColor="#1a1a1a" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: '#1a1a1a' },
+            animation: Platform.OS === 'ios' ? 'default' : 'fade',
+          }}
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="auth" options={{ headerShown: false }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

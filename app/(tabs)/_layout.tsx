@@ -54,20 +54,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="settings" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="log"
         options={{
           title: 'History',
           tabBarIcon: ({ color, size }) => (
             <Icon name="time" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="settings" size={size} color={color} />
           ),
         }}
       />

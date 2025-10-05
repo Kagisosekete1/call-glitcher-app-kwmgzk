@@ -8,13 +8,15 @@ import {
   ScrollView, 
   Alert,
   KeyboardAvoidingView,
-  Platform 
+  Platform,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Icon from '../../components/Icon';
+import { supabase } from '../integrations/supabase/client';
 import { 
   colors, 
   commonStyles, 
@@ -25,30 +27,66 @@ import {
 } from '../../styles/commonStyles';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const isValidPhone = (phone: string) => {
+    return /^\+?[1-9]\d{1,14}$/.test(phone.replace(/\s/g, ''));
+  };
 
   const handleLogin = async () => {
     try {
-      console.log('Login attempt with email:', email);
+      console.log('Login attempt with:', emailOrPhone);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
-      if (!email || !password) {
+      if (!emailOrPhone || !password) {
         Alert.alert('Error', 'Please fill in all fields');
         return;
       }
 
       setIsLoading(true);
       
-      // Simulate login process
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      let authData;
       
-      console.log('Login successful, navigating to main app');
-      router.replace('/(tabs)');
+      if (isValidEmail(emailOrPhone)) {
+        // Email login
+        authData = await supabase.auth.signInWithPassword({
+          email: emailOrPhone,
+          password: password,
+        });
+      } else if (isValidPhone(emailOrPhone)) {
+        // Phone login
+        authData = await supabase.auth.signInWithPassword({
+          phone: emailOrPhone,
+          password: password,
+        });
+      } else {
+        Alert.alert('Error', 'Please enter a valid email or phone number');
+        return;
+      }
+
+      const { data, error } = authData;
+
+      if (error) {
+        Alert.alert('Login Failed', error.message);
+        return;
+      }
+
+      if (data.user) {
+        console.log('Login successful, navigating to main app');
+        router.replace('/(tabs)');
+      }
       
     } catch (error) {
       console.error('Login error:', error);
@@ -116,13 +154,68 @@ export default function LoginScreen() {
 
           {/* Login Form */}
           <View style={[commonStyles.content, { paddingTop: spacing.xl }]}>
-            {/* Email Input */}
+            {/* Login Method Toggle */}
+            <View style={[commonStyles.row, { marginBottom: spacing.md }]}>
+              <TouchableOpacity
+                style={[
+                  {
+                    flex: 1,
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.md,
+                    borderRadius: borderRadius.md,
+                    backgroundColor: loginMethod === 'email' ? colors.primary : colors.backgroundAlt,
+                    marginRight: spacing.xs,
+                  }
+                ]}
+                onPress={() => setLoginMethod('email')}
+              >
+                <Text style={[
+                  commonStyles.caption,
+                  { 
+                    textAlign: 'center',
+                    color: loginMethod === 'email' ? colors.background : colors.text,
+                    fontWeight: '600'
+                  }
+                ]}>
+                  Email
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  {
+                    flex: 1,
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.md,
+                    borderRadius: borderRadius.md,
+                    backgroundColor: loginMethod === 'phone' ? colors.primary : colors.backgroundAlt,
+                    marginLeft: spacing.xs,
+                  }
+                ]}
+                onPress={() => setLoginMethod('phone')}
+              >
+                <Text style={[
+                  commonStyles.caption,
+                  { 
+                    textAlign: 'center',
+                    color: loginMethod === 'phone' ? colors.background : colors.text,
+                    fontWeight: '600'
+                  }
+                ]}>
+                  Phone
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Email/Phone Input */}
             <View style={inputStyles.container}>
-              <Text style={inputStyles.label}>Email or Phone</Text>
+              <Text style={inputStyles.label}>
+                {loginMethod === 'email' ? 'Email Address' : 'Phone Number'}
+              </Text>
               <View style={{ position: 'relative' }}>
                 <View style={inputStyles.iconContainer}>
                   <Icon 
-                    name="mail" 
+                    name={loginMethod === 'email' ? 'mail' : 'call'} 
                     size={20} 
                     color={emailFocused ? colors.primary : colors.textLight} 
                   />
@@ -133,13 +226,13 @@ export default function LoginScreen() {
                     inputStyles.inputWithIcon,
                     emailFocused && inputStyles.inputFocused
                   ]}
-                  placeholder="Enter your email or phone"
+                  placeholder={loginMethod === 'email' ? 'Enter your email' : 'Enter your phone number'}
                   placeholderTextColor={colors.textLight}
-                  value={email}
-                  onChangeText={setEmail}
+                  value={emailOrPhone}
+                  onChangeText={setEmailOrPhone}
                   onFocus={() => setEmailFocused(true)}
                   onBlur={() => setEmailFocused(false)}
-                  keyboardType="email-address"
+                  keyboardType={loginMethod === 'email' ? 'email-address' : 'phone-pad'}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -214,8 +307,30 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* Terms and Privacy */}
+            <View style={[commonStyles.center, { marginVertical: spacing.lg }]}>
+              <Text style={[commonStyles.caption, { textAlign: 'center', marginBottom: spacing.sm }]}>
+                By logging in or signing up, you agree to Call Glitcher's
+              </Text>
+              <View style={commonStyles.centerRow}>
+                <TouchableOpacity onPress={() => setShowTerms(true)}>
+                  <Text style={[commonStyles.caption, { color: colors.primary }]}>
+                    Terms of Use
+                  </Text>
+                </TouchableOpacity>
+                <Text style={[commonStyles.caption, { marginHorizontal: spacing.xs }]}>
+                  &
+                </Text>
+                <TouchableOpacity onPress={() => setShowPrivacy(true)}>
+                  <Text style={[commonStyles.caption, { color: colors.primary }]}>
+                    Privacy Policy
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* Divider */}
-            <View style={[commonStyles.divider, { marginVertical: spacing.xl }]} />
+            <View style={[commonStyles.divider, { marginVertical: spacing.md }]} />
 
             {/* Sign Up Link */}
             <View style={[commonStyles.centerRow, { marginBottom: spacing.xl }]}>
@@ -240,6 +355,100 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Terms Modal */}
+        <Modal
+          visible={showTerms}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowTerms(false)}
+        >
+          <SafeAreaView style={commonStyles.safeArea}>
+            <View style={commonStyles.container}>
+              <View style={[commonStyles.cardHeader, { padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                <Text style={commonStyles.title}>Terms of Use</Text>
+                <TouchableOpacity onPress={() => setShowTerms(false)}>
+                  <Icon name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.md }}>
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  By continuing, you agree to Call Glitcher's Terms of Use and Privacy Policy.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  Call Glitcher provides simulated and customizable call experiences for entertainment and productivity purposes only.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  Users must not use the app for harassment, fraud, or illegal activities.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  Subscription payments for Premium plans are billed monthly or yearly as selected by the user.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  Premium access remains active until the billing period ends or is canceled by the user.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  Call Glitcher reserves the right to modify features, pricing, or access at any time to improve service quality.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  Continued use of the app after updates means you accept any revised terms.
+                </Text>
+              </ScrollView>
+            </View>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Privacy Modal */}
+        <Modal
+          visible={showPrivacy}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowPrivacy(false)}
+        >
+          <SafeAreaView style={commonStyles.safeArea}>
+            <View style={commonStyles.container}>
+              <View style={[commonStyles.cardHeader, { padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                <Text style={commonStyles.title}>Privacy Policy</Text>
+                <TouchableOpacity onPress={() => setShowPrivacy(false)}>
+                  <Icon name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.md }}>
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  Call Glitcher respects your privacy and is committed to protecting your personal information.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  We collect only the information necessary to provide our services, including account information and usage data.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  Your personal information is never shared with third parties without your explicit consent.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  All data is encrypted and stored securely using industry-standard practices.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  You have the right to access, modify, or delete your personal information at any time.
+                </Text>
+                
+                <Text style={[commonStyles.body, { marginBottom: spacing.md }]}>
+                  For questions about our privacy practices, please contact our support team.
+                </Text>
+              </ScrollView>
+            </View>
+          </SafeAreaView>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
